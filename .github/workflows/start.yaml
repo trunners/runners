@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       image:
-        description: Image to run
+        description: Image
         required: true
-        default: ubuntu-latest
+        default: ubuntu-24.04
         type: choice
         options:
           - ubuntu-24.04
@@ -46,17 +46,17 @@ jobs:
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
 
           echo "setting ssh keys"
-          echo "${{ secrets.PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          echo "${{ secrets.PUBLIC_KEY }}" > ~/.ssh/id_ed25519.pub
+          sudo echo "${{ secrets.PRIVATE_KEY }}" > /etc/ssh/ssh_host_ed25519_key
+          sudo echo "${{ secrets.PUBLIC_KEY }}" > /etc/ssh/ssh_host_ed25519_key.pub
+          sudo chmod 600 /etc/ssh/ssh_host_ed25519_key
+          sudo chmod 644 /etc/ssh/ssh_host_ed25519_key.pub
 
           echo "adding ${{ github.actor }}'s keys to authorized_keys"
           curl -s -o ~/.ssh/authorized_keys "https://github.com/${{ github.actor }}.keys"
-
-          echo "setting permissions"
-          chmod 644 ~/.ssh/id_ed25519.pub
-          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/authorized_keys
+          chmod 600 ~/.ssh/authorized_keys
 
           echo "starting ssh service"
           sudo systemctl start ssh.service
