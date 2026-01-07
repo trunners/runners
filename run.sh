@@ -16,7 +16,11 @@ echo " "
 echo "Connect: ${bold}ssh -p ${PORT} $(whoami)@${DOMAIN}${normal}"
 echo " "
 
-journalctl -f -u ssh.service -o cat &
+if [[ "${RUNNER_OS}" == "Linux" ]]; then
+    journalctl -f -u ssh.service -o cat &
+elif [[ "${RUNNER_OS}" == "macOS" ]]; then
+    sudo log stream --predicate 'process == "sshd"' &
+fi
 LOGGER=$!
 
 until [[ "$(sudo lsof -i :22 | wc -l)" -gt "${SESSIONS}" ]]; do
