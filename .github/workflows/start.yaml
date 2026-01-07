@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       image:
-        description: 'Image to run'
+        description: Image to run
         required: true
-        default: 'ubuntu-latest'
+        default: ubuntu-latest
+        type: choice
+        options:
+          - ubuntu-latest
+          - warning
+          - debug
 
 permissions:
   contents: read
@@ -32,20 +37,21 @@ jobs:
           sudo systemctl start ssh.service
 
       - name: Waiting for connection
+        id: connection
         run: |
-          SESSIONS=$(who -a | wc -l)
-          IP=$(tailscale ip -4)
+          SESSIONS=$(sudo lsof -i :22 | wc -l)
+          echo "sessions=${SESSIONS}" >> "${GITHUB_OUTPUT}"
+
           USER=$(whoami)
+          IP=$(tailscale ip -4)
           echo "connect: ssh ${USER}@${IP}"
 
-          until [[ "$(who -a | wc -l)" -gt "${SESSIONS}" ]]; do
+          until [[ "$(sudo lsof -i :22 | wc -l)" -gt "${SESSIONS}" ]]; do
             sleep 10s
           done
 
       - name: Waiting for disconnection
         run: |
-          SESSIONS=$(who -a | wc -l)
-
-          until [[ "$(who -a | wc -l)" -lt "${SESSIONS}" ]]; do
+          until [[ "$(sudo lsof -i :22 | wc -l)" -le "${{ steps.connection.outputs.sessions }}" ]]; do
             sleep 10s
           done
