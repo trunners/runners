@@ -15,13 +15,22 @@ jobs:
   start:
     runs-on: ${{ inputs.image }}
     steps:
-      - name: Initialize
+      - name: Setup Tailscale
+        uses: tailscale/github-action@53acf823325fe9ca47f4cdaa951f90b4b0de5bb9 # v4.1.1
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_SECRET }}
+          tags: tag:ci
+
+      - name: Setup Nix
         uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be # v3.15.1
 
-      - name: Start upterm
-        uses: owenthereal/action-upterm@74d5d8bd3d4289468cdfc077df22adb884020f06 # v1.13.0
-        with:
-          wait-timeout-minutes: 5
-          limit-access-to-actor: true
-          limit-access-to-users: spotdemo4
-          
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          curl -o ~/.ssh/authorized_keys https://github.com/spotdemo4.keys
+          systemctl start ssh.service
+
+      - name: Waiting for connection
+        run: sleep 5m
+        
