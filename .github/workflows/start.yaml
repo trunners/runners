@@ -28,9 +28,8 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          curl -o ~/.ssh/authorized_keys https://github.com/spotdemo4.keys
-          systemctl start ssh.service
+          curl -s -o ~/.ssh/authorized_keys https://github.com/spotdemo4.keys
+          sudo systemctl status ssh.service
 
       - name: Waiting for connection
         run: sleep 5m
-        
