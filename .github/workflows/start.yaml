@@ -31,14 +31,14 @@ jobs:
           curl -s -o ~/.ssh/authorized_keys "https://github.com/${{ github.actor }}.keys"
           sudo systemctl start ssh.service
 
-      - name: Waiting for ssh connection
+      - name: Waiting for connection
         run: |
           SESSIONS=$(who -a | wc -l)
           IP=$(tailscale ip -4)
           USER=$(whoami)
           echo "connect: ssh ${USER}@${IP}"
 
-          until [ "$(who -a | wc -l)" -gt "${SESSIONS}" ]; do
+          until [[ "$(who -a | wc -l)" -gt "${SESSIONS}" ]]; do
             sleep 10s
           done
 
@@ -46,6 +46,6 @@ jobs:
         run: |
           SESSIONS=$(who -a | wc -l)
 
-          until [ "$(who -a | wc -l)" -le "${SESSIONS}" ]; do
+          until [[ "$(who -a | wc -l)" -lt "${SESSIONS}" ]]; do
             sleep 10s
           done
