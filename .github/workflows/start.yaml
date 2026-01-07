@@ -1,4 +1,4 @@
-name: checks
+name: start
 
 on:
   workflow_dispatch:
