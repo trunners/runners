@@ -80,9 +80,11 @@ jobs:
 
           SSH_USER=$(whoami)
           SSH_HOST=$(tailscale status | head -1 | awk '{print $2}')
+          echo " "
           echo "connect: ${bold}ssh ${SSH_USER}@${SSH_HOST}${normal}"
           echo " "
 
+          echo ":group::ssh logs"
           journalctl -f -u ssh.service &
           PID=$!
 
@@ -91,6 +93,8 @@ jobs:
           done
 
           kill $PID
+          echo "::endgroup::"
+          
           echo "connected!"
 
       - name: Wait for disconnection
