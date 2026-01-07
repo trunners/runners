@@ -3,10 +3,17 @@
 bold=$(tput -T xterm bold)
 normal=$(tput -T xterm sgr0)
 
+echo "::group::Starting funnel"
+sudo tailscale funnel --tcp 8443 --bg --yes tcp://localhost:22
+echo "::endgroup::"
+
 SESSIONS=$(sudo lsof -i :22 | wc -l)
-TS_HOST=$(tailscale status | head -1 | awk '{print $2}')
+
+URL=$(tailscale funnel status --json | jq -r ".AllowFunnel | keys[0]")
+DOMAIN=${URL%%:*}
+PORT=${URL##*:}
 echo " "
-echo "Connect: ${bold}ssh $(whoami)@${TS_HOST}${normal}"
+echo "Connect: ${bold}ssh -p ${PORT} $(whoami)@${DOMAIN}${normal}"
 echo " "
 
 journalctl -f -u ssh.service -o cat &

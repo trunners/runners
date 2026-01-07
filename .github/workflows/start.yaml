@@ -34,10 +34,13 @@ jobs:
         with:
           hatchet-protocol: holster
 
-      - name: Set up cloudflare
-        run: ./setup/cloudflare.sh
-        env:
-          CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE }}
+      - name: Set up tailscale
+        uses: tailscale/github-action@53acf823325fe9ca47f4cdaa951f90b4b0de5bb9 # v4.1.1
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_SECRET }}
+          hostname: gh-${{ inputs.image }}
+          tags: tag:ci
 
       - name: Set up nix
         uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be # v3.15.1
