@@ -84,7 +84,7 @@ jobs:
           echo "connect: ${bold}ssh ${SSH_USER}@${SSH_HOST}${normal}"
           echo " "
 
-          echo ":group::ssh logs"
+          echo "::group::ssh logs"
           journalctl -f -u ssh.service &
           PID=$!
 
@@ -94,7 +94,7 @@ jobs:
 
           kill $PID
           echo "::endgroup::"
-          
+
           echo "connected!"
 
       - name: Wait for disconnection
@@ -103,4 +103,4 @@ jobs:
             sleep 10s
           done
 
-          echo "disconnected!"
+          echo "disconnected"
