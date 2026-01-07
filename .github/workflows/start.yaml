@@ -65,8 +65,8 @@ jobs:
       - name: Wait for connection
         id: connection
         run: |
-          bold=$(tput -t xterm bold)
-          normal=$(tput -t xterm sgr0)
+          bold=$(tput -T xterm bold)
+          normal=$(tput -T xterm sgr0)
 
           SESSIONS=$(sudo lsof -i :22 | wc -l)
           echo "sessions=${SESSIONS}" >> "${GITHUB_OUTPUT}"
