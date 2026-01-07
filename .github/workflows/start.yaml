@@ -9,9 +9,10 @@ on:
         default: ubuntu-latest
         type: choice
         options:
-          - ubuntu-latest
-          - warning
-          - debug
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+          - macos-26
+          - macos-15
 
 permissions:
   contents: read
@@ -20,19 +21,19 @@ jobs:
   start:
     runs-on: ${{ inputs.image }}
     steps:
+      - if: ${{ runner.os == 'Linux' && runner.arch == 'X64' }}
+        name: Clean up
+        uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
+        continue-on-error: true
+        with:
+          hatchet-protocol: holster
+
       - name: Set up Tailscale
         uses: tailscale/github-action@53acf823325fe9ca47f4cdaa951f90b4b0de5bb9 # v4.1.1
         with:
           oauth-client-id: ${{ secrets.TAILSCALE_ID }}
           oauth-secret: ${{ secrets.TAILSCALE_SECRET }}
           tags: tag:ci
-
-      - if: ${{ runner.os == 'Linux' && runner.arch == 'X64' }}
-        name: Clean Up
-        uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
-        continue-on-error: true
-        with:
-          hatchet-protocol: holster
 
       - name: Set up Nix
         uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be # v3.15.1
