@@ -22,3 +22,6 @@ jobs:
         uses: owenthereal/action-upterm@74d5d8bd3d4289468cdfc077df22adb884020f06 # v1.13.0
         with:
           wait-timeout-minutes: 5
+          limit-access-to-actor: true
+          limit-access-to-users: spotdemo4
+          
