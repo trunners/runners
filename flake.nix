@@ -52,7 +52,7 @@
 
           start = pkgs.mkShell {
             packages = with pkgs; [
-              ncurses
+              kitty
             ];
           };
         };
