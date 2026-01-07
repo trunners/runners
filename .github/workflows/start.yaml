@@ -28,8 +28,13 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          curl -s -o ~/.ssh/authorized_keys https://github.com/spotdemo4.keys
+          curl -s -o ~/.ssh/authorized_keys "https://github.com/${{ github.actor }}.keys"
           sudo systemctl start ssh.service
 
       - name: Waiting for connection
-        run: sleep 5m
+        run: |
+          IP=$(tailscale ip -4)
+          USER=$(whoami)
+          echo "connect: ssh ${USER}@${IP}"
+
+          sleep 5m
