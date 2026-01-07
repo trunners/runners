@@ -50,13 +50,12 @@ jobs:
             accept-flake-config = true
             download-buffer-size = 524288000
 
-      - name: Set up shell
-        uses: nicknovitski/nix-develop@9be7cfb4b10451d3390a75dc18ad0465bed4932a # v1.2.1
-        with:
-          arguments: ".#start"
-
       - name: Set up ssh
         run: |
+          echo "::group::installing terminfo"
+          sudo apt-get install -y kitty-terminfo
+          echo "::endgroup::"
+
           echo "::group::overwriting sshd_config"
           cat "${{ github.workspace }}/sshd_config" | sudo tee /etc/ssh/sshd_config > /dev/null
           sudo cat /etc/ssh/sshd_config

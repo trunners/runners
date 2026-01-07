@@ -41,19 +41,10 @@
         devShells = {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              # nix
               nixfmt
-
-              # actions
               prettier
             ];
             shellHook = pkgs.shellhook.ref;
-          };
-
-          start = pkgs.mkShell {
-            packages = with pkgs; [
-              kitty
-            ];
           };
         };
 
