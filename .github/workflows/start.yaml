@@ -65,18 +65,26 @@ jobs:
       - name: Wait for connection
         id: connection
         run: |
+          bold=$(tput -t xterm bold)
+          normal=$(tput -t xterm sgr0)
+
           SESSIONS=$(sudo lsof -i :22 | wc -l)
           echo "sessions=${SESSIONS}" >> "${GITHUB_OUTPUT}"
 
-          USER=$(whoami)
-          echo "connect: ssh ${USER}@${{ inputs.image }}"
+          SSH_USER=$(whoami)
+          SSH_HOST=$(tailscale status | head -1 | awk '{print $2}')
+          echo "connect: ${bold}ssh ${SSH_USER}@${SSH_HOST}${normal}"
 
           until [[ "$(sudo lsof -i :22 | wc -l)" -gt "${SESSIONS}" ]]; do
             sleep 10s
           done
+
+          echo "connected!"
 
       - name: Wait for disconnection
         run: |
           until [[ "$(sudo lsof -i :22 | wc -l)" -le "${{ steps.connection.outputs.sessions }}" ]]; do
             sleep 10s
           done
+
+          echo "disconnected!"
