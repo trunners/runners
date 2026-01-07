@@ -27,13 +27,37 @@ jobs:
           oauth-secret: ${{ secrets.TAILSCALE_SECRET }}
           tags: tag:ci
 
+      - if: ${{ runner.os == 'Linux' && runner.arch == 'X64' }}
+        name: Cleaning Up
+        uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
+        continue-on-error: true
+        with:
+          hatchet-protocol: holster
+
       - name: Setup Nix
         uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be # v3.15.1
+        with:
+          extra-conf: |
+            eval-cores = 0
+            accept-flake-config = true
+            download-buffer-size = 524288000
 
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
+
+          echo "setting ssh keys"
+          cat "${{ secrets.PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          cat "${{ secrets.PUBLIC_KEY }}" > ~/.ssh/id_ed25519.pub
+
+          echo "adding ${{ github.actor }}'s keys to authorized_keys"
           curl -s -o ~/.ssh/authorized_keys "https://github.com/${{ github.actor }}.keys"
+
+          echo "setting permissions"
+          chmod 644 ~/.ssh/id_ed25519.pub
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/authorized_keys
+
+          echo "starting ssh service"
           sudo systemctl start ssh.service
 
       - name: Waiting for connection
@@ -50,7 +74,7 @@ jobs:
             sleep 10s
           done
 
-      - name: Waiting for disconnection
+      - name: Waiting for disconnect
         run: |
           until [[ "$(sudo lsof -i :22 | wc -l)" -le "${{ steps.connection.outputs.sessions }}" ]]; do
             sleep 10s
