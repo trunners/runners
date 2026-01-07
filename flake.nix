@@ -55,7 +55,7 @@
               shellcheck
             ];
             script = ''
-              shellcheck run.sh setup/cloudflare.sh setup/shell.sh setup/ssh.sh
+              shellcheck run.sh setup/shell.sh setup/ssh.sh
             '';
           };
 
