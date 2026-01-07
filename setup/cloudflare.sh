@@ -9,7 +9,7 @@ if [[ "${RUNNER_OS}" == "Linux" ]]; then
     echo 'deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] https://pkg.cloudflare.com/cloudflared any main' | sudo tee /etc/apt/sources.list.d/cloudflared.list
 
     # install cloudflared
-    sudo apt-get install cloudflared
+    sudo apt-get update && sudo apt-get install cloudflared
 
 elif [[ "${RUNNER_OS}" == "macOS" ]]; then
     brew install cloudflared
