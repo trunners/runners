@@ -49,6 +49,16 @@
         };
 
         checks = pkgs.lib.mkChecks {
+          shell = {
+            src = ./.;
+            deps = with pkgs; [
+              shellcheck
+            ];
+            script = ''
+              shellcheck **/*.sh
+            '';
+          };
+
           nix = {
             src = ./.;
             deps = with pkgs; [

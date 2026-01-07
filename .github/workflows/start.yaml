@@ -56,6 +56,9 @@ jobs:
           sudo apt-get install -y kitty-terminfo
           echo "::endgroup::"
 
+          echo "setting default shell to bash"
+          sudo chsh -s "$(which bash)" "$(whoami)"
+
           echo "::group::overwriting sshd_config"
           cat "${{ github.workspace }}/sshd_config" | sudo tee /etc/ssh/sshd_config > /dev/null
           sudo cat /etc/ssh/sshd_config
@@ -73,38 +76,5 @@ jobs:
           echo "starting ssh service"
           sudo systemctl start ssh.service
 
-      - name: Wait for connection
-        id: connection
-        run: |
-          bold=$(tput -T xterm bold)
-          normal=$(tput -T xterm sgr0)
-
-          SESSIONS=$(sudo lsof -i :22 | wc -l)
-          echo "sessions=${SESSIONS}" >> "${GITHUB_OUTPUT}"
-
-          SSH_USER=$(whoami)
-          SSH_HOST=$(tailscale status | head -1 | awk '{print $2}')
-          echo " "
-          echo "connect: ${bold}ssh ${SSH_USER}@${SSH_HOST}${normal}"
-          echo " "
-
-          echo "::group::ssh logs"
-          journalctl -f -u ssh.service &
-          PID=$!
-
-          until [[ "$(sudo lsof -i :22 | wc -l)" -gt "${SESSIONS}" ]]; do
-            sleep 10s
-          done
-
-          kill $PID
-          echo "::endgroup::"
-
-          echo "connected!"
-
-      - name: Wait for disconnection
-        run: |
-          until [[ "$(sudo lsof -i :22 | wc -l)" -le "${{ steps.connection.outputs.sessions }}" ]]; do
-            sleep 10s
-          done
-
-          echo "disconnected"
+      - name: Run
+        run: ./run.sh
