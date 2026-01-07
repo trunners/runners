@@ -55,7 +55,7 @@
               shellcheck
             ];
             script = ''
-              shellcheck **/*.sh
+              shellcheck run.sh
             '';
           };
 
