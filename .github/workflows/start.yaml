@@ -15,15 +15,10 @@ jobs:
   packages:
     runs-on: ${{ inputs.image }}
     steps:
-      - name: Tailscale
-        uses: tailscale/github-action@53acf823325fe9ca47f4cdaa951f90b4b0de5bb9 # v4.1.1
-        with:
-          oauth-client-id: ${{ secrets.TAILSCALE_ID }}
-          oauth-secret: ${{ secrets.TAILSCALE_SECRET }}
-          tags: tag:ci
-
       - name: Initialize
         uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be # v3.15.1
 
-      - run: sleep 1m
-      
+      - name: Start upterm
+        uses: owenthereal/action-upterm@74d5d8bd3d4289468cdfc077df22adb884020f06 # v1.13.0
+        with:
+          wait-timeout-minutes: 5
