@@ -56,14 +56,17 @@ jobs:
 
           echo "overwriting sshd_config"
           sudo mv "${{ github.workspace }}/sshd_config" /etc/ssh/sshd_config
+          echo "::group::sshd_config"
+          sudo cat /etc/ssh/sshd_config
+          echo "::endgroup::"
 
           echo "setting ssh keys"
           echo "${{ secrets.PRIVATE_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key > /dev/null
           echo "${{ secrets.PUBLIC_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key.pub > /dev/null
 
           echo "adding ${{ github.actor }}'s keys to authorized_keys"
-          curl -s -o ~/.ssh/authorized_keys "https://github.com/${{ github.actor }}.keys"
-          chmod 600 ~/.ssh/authorized_keys
+          sudo curl -s -o /etc/ssh/authorized_keys "https://github.com/${{ github.actor }}.keys"
+          sudo chmod 600 /etc/ssh/authorized_keys
 
           echo "starting ssh service"
           sudo systemctl start ssh.service
