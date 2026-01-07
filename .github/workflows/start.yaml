@@ -52,11 +52,8 @@ jobs:
 
       - name: Set up ssh
         run: |
-          mkdir -m 700 -p ~/.ssh
-
-          echo "overwriting sshd_config"
+          echo "::group::overwriting sshd_config"
           sudo mv "${{ github.workspace }}/sshd_config" /etc/ssh/sshd_config
-          echo "::group::sshd_config"
           sudo cat /etc/ssh/sshd_config
           echo "::endgroup::"
 
@@ -64,9 +61,11 @@ jobs:
           echo "${{ secrets.PRIVATE_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key > /dev/null
           echo "${{ secrets.PUBLIC_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key.pub > /dev/null
 
-          echo "adding ${{ github.actor }}'s keys to authorized_keys"
+          echo "::group::adding ${{ github.actor }}'s keys to authorized_keys"
           sudo curl -s -o /etc/ssh/authorized_keys "https://github.com/${{ github.actor }}.keys"
           sudo chmod 600 /etc/ssh/authorized_keys
+          sudo cat /etc/ssh/authorized_keys
+          echo "::endgroup::"
 
           echo "starting ssh service"
           sudo systemctl start ssh.service
