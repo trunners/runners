@@ -24,6 +24,9 @@ jobs:
   start:
     runs-on: ${{ inputs.image }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
       - if: ${{ runner.os == 'Linux' && runner.arch == 'X64' }}
         name: Clean up
         uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
@@ -50,6 +53,9 @@ jobs:
       - name: Set up ssh
         run: |
           mkdir -m 700 -p ~/.ssh
+
+          echo "overwriting sshd_config"
+          sudo mv "${{ github.workspace }}/sshd_config" /etc/ssh/sshd_config
 
           echo "setting ssh keys"
           echo "${{ secrets.PRIVATE_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key > /dev/null
