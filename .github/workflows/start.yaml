@@ -34,13 +34,10 @@ jobs:
         with:
           hatchet-protocol: holster
 
-      - name: Set up tailscale
-        uses: tailscale/github-action@53acf823325fe9ca47f4cdaa951f90b4b0de5bb9 # v4.1.1
-        with:
-          oauth-client-id: ${{ secrets.TAILSCALE_ID }}
-          oauth-secret: ${{ secrets.TAILSCALE_SECRET }}
-          hostname: gh-${{ inputs.image }}
-          tags: tag:ci
+      - name: Set up cloudflare
+        run: ./setup/cloudflare.sh
+        env:
+          CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE }}
 
       - name: Set up nix
         uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be # v3.15.1
@@ -50,31 +47,14 @@ jobs:
             accept-flake-config = true
             download-buffer-size = 524288000
 
+      - name: Set up shell
+        run: ./setup/shell.sh
+
       - name: Set up ssh
-        run: |
-          echo "::group::installing terminfo"
-          sudo apt-get install -y kitty-terminfo
-          echo "::endgroup::"
-
-          echo "setting default shell to bash"
-          sudo chsh -s "$(which bash)" "$(whoami)"
-
-          echo "::group::overwriting sshd_config"
-          cat "${{ github.workspace }}/sshd_config" | sudo tee /etc/ssh/sshd_config > /dev/null
-          sudo cat /etc/ssh/sshd_config
-          echo "::endgroup::"
-
-          echo "setting ssh keys"
-          echo "${{ secrets.PRIVATE_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key > /dev/null
-          echo "${{ secrets.PUBLIC_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key.pub > /dev/null
-
-          echo "::group::adding ${{ github.actor }}'s keys to authorized_keys"
-          curl -s "https://github.com/${{ github.actor }}.keys" | sudo tee /etc/ssh/authorized_keys > /dev/null
-          sudo cat /etc/ssh/authorized_keys
-          echo "::endgroup::"
-
-          echo "starting ssh service"
-          sudo systemctl start ssh.service
+        run: ./setup/ssh.sh
+        env:
+          PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
 
       - name: Run
         run: ./run.sh
