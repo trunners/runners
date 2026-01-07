@@ -37,5 +37,6 @@ until [[ "${INACTIVE}" -ge "5" ]]; do
     sleep 1m
 done
 
+sudo tailscale funnel --tcp 8443 off
 kill "${LOGGER}"
 echo "disconnected"

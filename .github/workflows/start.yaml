@@ -42,13 +42,13 @@ jobs:
           hostname: gh-${{ inputs.image }}
           tags: tag:ci
 
-      - name: Set up nix
-        uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be # v3.15.1
-        with:
-          extra-conf: |
-            eval-cores = 0
-            accept-flake-config = true
-            download-buffer-size = 524288000
+      # - name: Set up nix
+      #   uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be # v3.15.1
+      #   with:
+      #     extra-conf: |
+      #       eval-cores = 0
+      #       accept-flake-config = true
+      #       download-buffer-size = 524288000
 
       - name: Set up shell
         run: ./setup/shell.sh
