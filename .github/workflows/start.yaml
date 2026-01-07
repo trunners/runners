@@ -14,6 +14,9 @@ on:
           - macos-26
           - macos-15
 
+concurrency:
+  group: ${{ inputs.image }}
+
 permissions:
   contents: read
 
@@ -28,14 +31,15 @@ jobs:
         with:
           hatchet-protocol: holster
 
-      - name: Set up Tailscale
+      - name: Set up tailscale
         uses: tailscale/github-action@53acf823325fe9ca47f4cdaa951f90b4b0de5bb9 # v4.1.1
         with:
           oauth-client-id: ${{ secrets.TAILSCALE_ID }}
           oauth-secret: ${{ secrets.TAILSCALE_SECRET }}
+          hostname: gh-${{ input.image }}
           tags: tag:ci
 
-      - name: Set up Nix
+      - name: Set up nix
         uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be # v3.15.1
         with:
           extra-conf: |
@@ -43,13 +47,13 @@ jobs:
             accept-flake-config = true
             download-buffer-size = 524288000
 
-      - name: Set up SSH
+      - name: Set up ssh
         run: |
           mkdir -m 700 -p ~/.ssh
 
           echo "setting ssh keys"
-          echo "${{ secrets.PRIVATE_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key
-          echo "${{ secrets.PUBLIC_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key.pub
+          echo "${{ secrets.PRIVATE_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key > /dev/null
+          echo "${{ secrets.PUBLIC_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key.pub > /dev/null
 
           echo "adding ${{ github.actor }}'s keys to authorized_keys"
           curl -s -o ~/.ssh/authorized_keys "https://github.com/${{ github.actor }}.keys"
@@ -65,8 +69,7 @@ jobs:
           echo "sessions=${SESSIONS}" >> "${GITHUB_OUTPUT}"
 
           USER=$(whoami)
-          IP=$(tailscale ip -4)
-          echo "connect: ssh ${USER}@${IP}"
+          echo "connect: ssh ${USER}@${{ input.image }}"
 
           until [[ "$(sudo lsof -i :22 | wc -l)" -gt "${SESSIONS}" ]]; do
             sleep 10s
