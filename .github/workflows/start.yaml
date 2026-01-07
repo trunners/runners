@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  packages:
+  start:
     runs-on: ${{ inputs.image }}
     steps:
       - name: Initialize
