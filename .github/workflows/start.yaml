@@ -45,14 +45,11 @@ jobs:
 
       - name: Set up SSH
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+          mkdir -m 700 -p ~/.ssh
 
           echo "setting ssh keys"
-          sudo echo "${{ secrets.PRIVATE_KEY }}" > /etc/ssh/ssh_host_ed25519_key
-          sudo echo "${{ secrets.PUBLIC_KEY }}" > /etc/ssh/ssh_host_ed25519_key.pub
-          sudo chmod 600 /etc/ssh/ssh_host_ed25519_key
-          sudo chmod 644 /etc/ssh/ssh_host_ed25519_key.pub
+          echo "${{ secrets.PRIVATE_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key
+          echo "${{ secrets.PUBLIC_KEY }}" | sudo tee /etc/ssh/ssh_host_ed25519_key.pub
 
           echo "adding ${{ github.actor }}'s keys to authorized_keys"
           curl -s -o ~/.ssh/authorized_keys "https://github.com/${{ github.actor }}.keys"
