@@ -69,7 +69,7 @@ jobs:
           echo "sessions=${SESSIONS}" >> "${GITHUB_OUTPUT}"
 
           USER=$(whoami)
-          echo "connect: ssh ${USER}@${{ input.image }}"
+          echo "connect: ssh ${USER}@${{ inputs.image }}"
 
           until [[ "$(sudo lsof -i :22 | wc -l)" -gt "${SESSIONS}" ]]; do
             sleep 10s
