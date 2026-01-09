@@ -69,7 +69,7 @@ release:
 
 dockers_v2:
   - images:
-      - "gcr.io/trunners/runners"
+      - "ghcr.io/trunners/runners"
 
     tags:
       - "v{{ .Version }}"
