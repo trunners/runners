@@ -43,7 +43,7 @@ echo "::group::Starting funnel"
 sudo tailscale funnel --tcp 8443 --yes --bg tcp://localhost:22
 echo "::endgroup::"
 
-SESSIONS=$(who | grep -c pts)
+SESSIONS=$(who | grep -c -e pts -e tty)
 URL=$(tailscale funnel status --json | jq -r ".AllowFunnel | keys[0]")
 DOMAIN=${URL%%:*}
 PORT=${URL##*:}
@@ -62,7 +62,7 @@ LOGGER=$!
 
 # wait for connection
 
-until [[ "$(who | grep -c pts)" -gt "${SESSIONS}" ]]; do
+until [[ "$(who | grep -c -e pts -e tty)" -gt "${SESSIONS}" ]]; do
     sleep 5s
 done
 
@@ -70,7 +70,7 @@ echo "${bold}Connected!${normal}"
 
 # wait for disconnection
 
-until [[ "$(who | grep -c pts)" -le "${SESSIONS}" ]]; do
+until [[ "$(who | grep -c -e pts -e tty)" -le "${SESSIONS}" ]]; do
     sleep 5s
 done
 
