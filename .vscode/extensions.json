@@ -1,3 +1,7 @@
 {
-  "recommendations": ["jnoortheen.nix-ide", "prettier.prettier-vscode"]
+  "recommendations": [
+    "golang.go",
+    "jnoortheen.nix-ide",
+    "prettier.prettier-vscode"
+  ]
 }

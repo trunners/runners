@@ -37,18 +37,46 @@
           ];
         };
       in
-      {
+      rec {
         devShells = {
           default = pkgs.mkShell {
             packages = with pkgs; [
+              # go
+              go
+              gotools
+              gopls
+              golangci-lint
+              goreleaser
+
+              # formatting / linting
               nixfmt
               prettier
             ];
             shellHook = pkgs.shellhook.ref;
           };
+
+          release = pkgs.mkShell {
+            packages = with pkgs; [
+              go
+              gotools
+              gopls
+              goreleaser
+            ];
+          };
         };
 
         checks = pkgs.lib.mkChecks {
+          go = {
+            src = packages.default;
+            deps = with pkgs; [
+              golangci-lint
+            ];
+            script = ''
+              go test ./...
+              golangci-lint run ./...
+            '';
+          };
+
           action = {
             src = ./.;
             deps = with pkgs; [
@@ -81,10 +109,30 @@
               prettier --check .
               action-validator .github/**/*.yaml
               octoscan scan .github
-              # renovate-config-validator .github/renovate.json
+              renovate-config-validator .github/renovate.json
             '';
           };
         };
+
+        packages.default = pkgs.buildGoModule (finalAttrs: {
+          pname = "runners";
+          version = "0.0.1";
+
+          src = builtins.path {
+            name = "root";
+            path = ./.;
+          };
+          vendorHash = null;
+          env.CGO_ENABLED = 0;
+
+          meta = {
+            description = "runners";
+            homepage = "https://github.com/trunners/runners";
+            changelog = "https://github.com/trunners/runners/releases/tag/v${finalAttrs.version}";
+            license = pkgs.lib.licenses.mit;
+            platforms = pkgs.lib.platforms.all;
+          };
+        });
 
         formatter = pkgs.nixfmt-tree;
       }

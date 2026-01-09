@@ -1,0 +1,23 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Initialize
+        uses: spotdemo4/nix-init@52cb2ce76d8414b55e388944a72ddaabbff8bd55 # v1.17.0
+        with:
+          shell: release
+
+      - name: Run GoReleaser
+        run: goreleaser release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
