@@ -34,3 +34,4 @@ jobs:
           PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           SERVER_ADDRESS: ${{ inputs.server }}
+          GH_TOKEN: ${{ github.token }}
