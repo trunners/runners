@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -15,27 +16,54 @@ import (
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	workflowID := os.Getenv("WORKFLOW_ID")
-	workflowOwner := os.Getenv("WORKFLOW_OWNER")
-	workflowRepository := os.Getenv("WORKFLOW_REPOSITORY")
-	workflowToken := os.Getenv("WORKFLOW_TOKEN")
+	workflowPort := os.Getenv("WORKFLOW_PORT")
+	if workflowPort == "" {
+		log.Println("WORKFLOW_PORT not set, defaulting to 8081")
+		workflowPort = "8081"
+	}
 
-	workflow, err := NewWorkflow(workflowID, workflowOwner, workflowRepository, workflowToken)
+	devicePort := os.Getenv("DEVICE_PORT")
+	if devicePort == "" {
+		log.Println("DEVICE_PORT not set, defaulting to 8080")
+		devicePort = "8080"
+	}
+
+	workflowID := os.Getenv("WORKFLOW_ID")
+	if workflowID == "" {
+		log.Fatal("WORKFLOW_ID not set")
+	}
+
+	workflowOwner := os.Getenv("WORKFLOW_OWNER")
+	if workflowOwner == "" {
+		log.Fatal("WORKFLOW_OWNER not set")
+	}
+
+	workflowRepository := os.Getenv("WORKFLOW_REPOSITORY")
+	if workflowRepository == "" {
+		log.Fatal("WORKFLOW_REPOSITORY not set")
+	}
+
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken == "" {
+		log.Fatal("GITHUB_TOKEN not set")
+	}
+
+	workflow, err := NewWorkflow(workflowID, workflowOwner, workflowRepository, githubToken)
 	if err != nil {
 		log.Fatalf("Failed to create workflow: %v", err)
 	}
-	log.Printf("Initialized workflow: %s\n", workflow.ID)
+	log.Printf("Using workflow: %s\n", workflow.ID)
 
 	conns := make(chan net.Conn)
 	cfg := net.ListenConfig{}
 	wg := sync.WaitGroup{}
 
 	wg.Go(func() {
-		workflowListen(ctx, cfg, conns)
+		workflowListen(ctx, cfg, workflowPort, conns)
 	})
 
 	wg.Go(func() {
-		deviceListen(ctx, cfg, conns, *workflow)
+		deviceListen(ctx, cfg, devicePort, conns, *workflow)
 	})
 
 	sigs := make(chan os.Signal, 1)
@@ -45,12 +73,12 @@ func main() {
 		cancel()
 	}()
 
-	log.Println("Connect: ssh -p 8080 localhost")
+	log.Printf("Connect: ssh -p %s %s\n", devicePort, getOutboundIP(ctx).String())
 	wg.Wait()
 }
 
-func workflowListen(ctx context.Context, cfg net.ListenConfig, conns chan net.Conn) {
-	listener, err := cfg.Listen(ctx, "tcp", ":8081")
+func workflowListen(ctx context.Context, cfg net.ListenConfig, port string, conns chan net.Conn) {
+	listener, err := cfg.Listen(ctx, "tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -81,8 +109,8 @@ func workflowListen(ctx context.Context, cfg net.ListenConfig, conns chan net.Co
 	}
 }
 
-func deviceListen(ctx context.Context, cfg net.ListenConfig, conns chan net.Conn, w Workflow) {
-	listener, err := cfg.Listen(ctx, "tcp", ":8080")
+func deviceListen(ctx context.Context, cfg net.ListenConfig, port string, conns chan net.Conn, w Workflow) {
+	listener, err := cfg.Listen(ctx, "tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -151,4 +179,23 @@ func deviceHandle(ctx context.Context, deviceConn net.Conn, workflowConns chan n
 	}
 
 	log.Println("Connection terminated")
+}
+
+// get preferred outbound ip of this machine.
+func getOutboundIP(ctx context.Context) net.IP {
+	dialer := &net.Dialer{}
+	conn, err := dialer.DialContext(ctx, "udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr()
+	udpAddr, ok := localAddr.(*net.UDPAddr)
+	if !ok {
+		log.Printf("Failed to get local UDP address: %v\n", localAddr)
+		return net.IPv4zero
+	}
+
+	return udpAddr.IP
 }
