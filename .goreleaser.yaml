@@ -34,7 +34,7 @@ builds:
       - arm64
 
 archives:
-  - format: binary
+  - formats: binary
 
 changelog:
   sort: asc
