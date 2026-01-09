@@ -59,7 +59,7 @@ func workflowListen(ctx context.Context, env *Env, cfg net.ListenConfig, conns c
 		}
 	}()
 
-	log.Println("Listening for workflow connections on port 8081")
+	log.Printf("Listening for workflow connections on port %s\n", env.WorkflowPort)
 
 	for {
 		var conn net.Conn
@@ -91,7 +91,7 @@ func deviceListen(ctx context.Context, env *Env, cfg net.ListenConfig, conns cha
 		}
 	}()
 
-	log.Println("Listening for device connections on port 8080")
+	log.Printf("Listening for device connections on port %s\n", env.DevicePort)
 
 	for {
 		var conn net.Conn
