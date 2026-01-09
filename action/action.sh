@@ -43,7 +43,7 @@ echo "::group::Starting funnel"
 sudo tailscale funnel --tcp 8443 --yes --bg tcp://localhost:22
 echo "::endgroup::"
 
-SESSIONS=$(sudo lsof -i :22 | wc -l)
+SESSIONS=$(who | grep -c pts)
 URL=$(tailscale funnel status --json | jq -r ".AllowFunnel | keys[0]")
 DOMAIN=${URL%%:*}
 PORT=${URL##*:}
@@ -60,24 +60,18 @@ elif [[ "${RUNNER_OS}" == "macOS" ]]; then
 fi
 LOGGER=$!
 
-until [[ "$(sudo lsof -i :22 | wc -l)" -gt "${SESSIONS}" ]]; do
-    sleep 10s
+# wait for connection
+
+until [[ "$(who | grep -c pts)" -gt "${SESSIONS}" ]]; do
+    sleep 5s
 done
 
-echo "${bold}Connected!${normal} Will stop after five minutes of inactivity"
+echo "${bold}Connected!${normal}"
 
-# wait for inactivity
+# wait for disconnection
 
-INACTIVE=0
-until [[ "${INACTIVE}" -ge "5" ]]; do
-    if [[ "$(sudo lsof -i :22 | wc -l)" -le "${SESSIONS}" ]]; then
-        ((INACTIVE++))
-        echo "Inactive for ${INACTIVE}/5 minutes"
-    else
-        INACTIVE=0
-    fi
-
-    sleep 1m
+until [[ "$(who | grep -c pts)" -le "${SESSIONS}" ]]; do
+    sleep 5s
 done
 
 # teardown
