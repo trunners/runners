@@ -27,13 +27,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      # - if: ${{ runner.os == 'Linux' && runner.arch == 'X64' }}
-      #   name: Clean up
-      #   uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
-      #   continue-on-error: true
-      #   with:
-      #     hatchet-protocol: holster
-
       - name: Set up tailscale
         uses: tailscale/github-action@53acf823325fe9ca47f4cdaa951f90b4b0de5bb9 # v4.1.1
         with:
@@ -42,22 +35,8 @@ jobs:
           hostname: gh-${{ inputs.image }}
           tags: tag:ci
 
-      # - name: Set up nix
-      #   uses: DeterminateSystems/determinate-nix-action@1d699fc25db3f9e079cd2f168ca007a4183389be # v3.15.1
-      #   with:
-      #     extra-conf: |
-      #       eval-cores = 0
-      #       accept-flake-config = true
-      #       download-buffer-size = 524288000
-
-      - name: Set up shell
-        run: ./setup/shell.sh
-
-      - name: Set up ssh
-        run: ./setup/ssh.sh
+      - name: Start
+        run: ./action/action.sh
         env:
           PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-
-      - name: Run
-        run: ./run.sh
