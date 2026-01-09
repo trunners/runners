@@ -49,13 +49,13 @@
         };
 
         checks = pkgs.lib.mkChecks {
-          shell = {
+          action = {
             src = ./.;
             deps = with pkgs; [
               shellcheck
             ];
             script = ''
-              shellcheck run.sh setup/shell.sh setup/ssh.sh
+              shellcheck action/action.sh
             '';
           };
 
