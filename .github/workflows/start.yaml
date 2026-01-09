@@ -14,8 +14,9 @@ on:
           - macos-26
           - macos-15
 
-concurrency:
-  group: ${{ inputs.image }}
+      server:
+        description: Socket address of the middleware server
+        required: true
 
 permissions:
   contents: read
@@ -27,16 +28,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: Set up tailscale
-        uses: tailscale/github-action@53acf823325fe9ca47f4cdaa951f90b4b0de5bb9 # v4.1.1
-        with:
-          oauth-client-id: ${{ secrets.TAILSCALE_ID }}
-          oauth-secret: ${{ secrets.TAILSCALE_SECRET }}
-          hostname: gh-${{ inputs.image }}
-          tags: tag:ci
-
       - name: Start
         run: ./action/action.sh
         env:
           PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          SERVER_ADDRESS: ${{ inputs.server }}

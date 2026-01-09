@@ -15,6 +15,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	serverAddress := os.Getenv("SERVER_ADDRESS")
+	if serverAddress == "" {
+		log.Fatal("SERVER_ADDRESS environment variable is required")
+	}
 
 	dialer := &net.Dialer{}
 

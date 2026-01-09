@@ -33,7 +33,8 @@ func NewWorkflow(id, owner, repository, token string) (*Workflow, error) {
 }
 
 type Inputs struct {
-	Image string `json:"image"`
+	Image  string `json:"image"`
+	Server string `json:"server"`
 }
 
 type Dispatch struct {
@@ -41,9 +42,10 @@ type Dispatch struct {
 	Inputs Inputs `json:"inputs"`
 }
 
-func (w Workflow) start(ctx context.Context, image string, ref string) error {
+func (w Workflow) start(ctx context.Context, image string, server string, ref string) error {
 	inputs := Inputs{
-		Image: image,
+		Image:  image,
+		Server: server,
 	}
 
 	dispatch := Dispatch{

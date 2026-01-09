@@ -37,18 +37,20 @@ elif [[ "${RUNNER_OS}" == "macOS" ]]; then
     sudo systemsetup -setremotelogin on
 fi
 
-# setup tailscale funnel
-
-echo "::group::Starting funnel"
-sudo tailscale funnel --tcp 8443 --yes --bg tcp://localhost:22
+# setup client
+echo "::group::installing client"
+wget -O client https://github.com/trunners/runners/releases/download/v0.0.5/client_0.0.5_darwin_amd64
+chmod +x client
 echo "::endgroup::"
 
+echo "starting client"
+./client &
+CLIENT=$!
+
 SESSIONS=$(who | grep -c -e pts -e tty)
-URL=$(tailscale funnel status --json | jq -r ".AllowFunnel | keys[0]")
-DOMAIN=${URL%%:*}
-PORT=${URL##*:}
+
 echo " "
-echo "Connect: ${bold}ssh -p ${PORT} $(whoami)@${DOMAIN}${normal}"
+echo "Ready to connect via SSH!"
 echo " "
 
 # log ssh connections
@@ -75,6 +77,5 @@ until [[ "$(who | grep -c -e pts -e tty)" -le "${SESSIONS}" ]]; do
 done
 
 # teardown
-
-sudo tailscale funnel --tcp 8443 --yes off
 kill "${LOGGER}"
+kill "${CLIENT}"
