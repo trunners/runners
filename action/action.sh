@@ -38,13 +38,26 @@ elif [[ "${RUNNER_OS}" == "macOS" ]]; then
 fi
 
 # setup client
+
+if [[ "${RUNNER_OS}" == "Linux" ]]; then
+    RELEASE_OS="linux"
+elif [[ "${RUNNER_OS}" == "macOS" ]]; then
+    RELEASE_OS="darwin"
+fi
+
+if [[ "${RUNNER_ARCH}" == "X64" ]]; then
+    RELEASE_ARCH="amd64"
+elif [[ "${RUNNER_ARCH}" == "ARM64" ]]; then
+    RELEASE_ARCH="arm64"
+fi
+
 echo "::group::installing client"
-wget -O client https://github.com/trunners/runners/releases/download/v0.0.5/client_0.0.5_darwin_amd64
-chmod +x client
+gh release download --repo trunners/runners --pattern "client_*_${RELEASE_OS}_${RELEASE_ARCH}" --output runner
+chmod +x runner
 echo "::endgroup::"
 
 echo "starting client"
-./client &
+./runner &
 CLIENT=$!
 
 SESSIONS=$(who | grep -c -e pts -e tty)
