@@ -77,16 +77,6 @@
             '';
           };
 
-          action = {
-            src = ./.;
-            deps = with pkgs; [
-              shellcheck
-            ];
-            script = ''
-              shellcheck action/action.sh
-            '';
-          };
-
           nix = {
             src = ./.;
             deps = with pkgs; [
