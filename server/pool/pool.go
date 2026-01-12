@@ -71,7 +71,16 @@ func (p *Pool) add(ctx context.Context, conn net.Conn) {
 	defer p.mu.Unlock()
 
 	if len(p.connections) >= 2 { //nolint:mnd // max 2
-		log.WarnContext(ctx, "Rejecting connection, pool is full", "port", p.port, "address", conn.RemoteAddr())
+		log.WarnContext(
+			ctx,
+			"Rejecting connection, pool is full",
+			"port",
+			p.port,
+			"remote",
+			conn.RemoteAddr(),
+			"local",
+			conn.LocalAddr(),
+		)
 
 		err := conn.Close()
 		if err != nil {
@@ -80,8 +89,10 @@ func (p *Pool) add(ctx context.Context, conn net.Conn) {
 				"Could not close connection",
 				"port",
 				p.port,
-				"address",
+				"remote",
 				conn.RemoteAddr(),
+				"local",
+				conn.LocalAddr(),
 				"error",
 				err,
 			)
