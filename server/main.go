@@ -2,38 +2,44 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
-	"log"
-	"net"
+	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/trunners/runners/logger"
+	"github.com/trunners/runners/server/config"
+	"github.com/trunners/runners/server/github"
+	"github.com/trunners/runners/server/pool"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
-	env := LoadEnv(ctx)
 
-	workflow, err := NewWorkflow(env.WorkflowID, env.WorkflowOwner, env.WorkflowRepository, env.GithubToken)
+	log := logger.New()
+	ctx = logger.WithLogger(ctx, log)
+
+	config, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to create workflow: %v", err)
+		log.ErrorContext(ctx, "Failed to load config", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("Using workflow: %s\n", workflow.ID)
 
-	conns := make(chan net.Conn)
-	cfg := net.ListenConfig{}
+	gh, err := github.New(config.GithubToken)
+	if err != nil {
+		log.ErrorContext(ctx, "Failed to create GitHub client", "error", err)
+		os.Exit(1)
+	}
+
 	wg := sync.WaitGroup{}
-
-	wg.Go(func() {
-		workflowListen(ctx, env, cfg, conns)
-	})
-
-	wg.Go(func() {
-		deviceListen(ctx, env, cfg, conns, *workflow)
-	})
+	for _, wf := range config.Workflows {
+		wg.Go(func() {
+			workflowCtx := logger.Append(ctx, slog.String("workflow", wf.ID))
+			workflow(workflowCtx, wf, gh, config.Port)
+		})
+	}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -42,110 +48,37 @@ func main() {
 		cancel()
 	}()
 
-	log.Printf("Connect: ssh -p %s %s\n", env.DevicePort, env.Hostname)
 	wg.Wait()
 }
 
-func workflowListen(ctx context.Context, env *Env, cfg net.ListenConfig, conns chan net.Conn) {
-	listener, err := cfg.Listen(ctx, "tcp", fmt.Sprintf(":%s", env.WorkflowPort))
+func workflow(ctx context.Context, w config.Workflow, gh github.Github, port int) {
+	log := logger.FromContext(ctx)
+
+	p, err := pool.Start(ctx, port)
 	if err != nil {
-		log.Fatal(err)
-	}
-	go func() {
-		<-ctx.Done()
-		lerr := listener.Close()
-		if lerr != nil {
-			log.Println("Error closing workflow listener:", lerr)
-		}
-	}()
-
-	log.Printf("Listening for workflow connections on port %s\n", env.WorkflowPort)
-
-	for {
-		var conn net.Conn
-		conn, err = listener.Accept()
-		if err != nil {
-			if errors.Is(err, net.ErrClosed) {
-				break
-			}
-
-			log.Println("Error accepting workflow connection:", err)
-			continue
-		}
-
-		log.Println("New workflow connected:", conn.RemoteAddr())
-		conns <- conn
-	}
-}
-
-func deviceListen(ctx context.Context, env *Env, cfg net.ListenConfig, conns chan net.Conn, w Workflow) {
-	listener, err := cfg.Listen(ctx, "tcp", fmt.Sprintf(":%s", env.DevicePort))
-	if err != nil {
-		log.Fatal(err)
-	}
-	go func() {
-		<-ctx.Done()
-		lerr := listener.Close()
-		if lerr != nil {
-			log.Println("Error closing device listener:", lerr)
-		}
-	}()
-
-	log.Printf("Listening for device connections on port %s\n", env.DevicePort)
-
-	for {
-		var conn net.Conn
-		conn, err = listener.Accept()
-		if err != nil {
-			if errors.Is(err, net.ErrClosed) {
-				break
-			}
-
-			log.Println("Error accepting device connection:", err)
-			continue
-		}
-
-		go deviceHandle(ctx, env, conn, conns, w)
-	}
-}
-
-func deviceHandle(ctx context.Context, env *Env, deviceConn net.Conn, workflowConns chan net.Conn, w Workflow) {
-	log.Println("New device connected:", deviceConn.RemoteAddr())
-	defer deviceConn.Close()
-
-	log.Println("Starting workflow...")
-	err := w.start(ctx, "ubuntu-24.04", fmt.Sprintf("%s:%s", env.Hostname, env.WorkflowPort), "main")
-	if err != nil {
-		log.Println("Failed to start workflow:", err)
+		log.ErrorContext(ctx, "Failed to create connection pool", "error", err)
 		return
 	}
 
-	log.Println("Waiting for workflow connection...")
-	workflowConn := <-workflowConns
-
-	log.Printf("Piping data between %s and %s...\n", deviceConn.RemoteAddr(), workflowConn.RemoteAddr())
-	wg := sync.WaitGroup{}
-
-	wg.Go(func() {
-		_, ioerr := io.Copy(deviceConn, workflowConn)
-		if ioerr != nil {
-			log.Println("Error piping data:", err)
-		}
-	})
-
-	wg.Go(func() {
-		_, ioerr := io.Copy(workflowConn, deviceConn)
-		if ioerr != nil {
-			log.Println("Error piping data:", err)
-		}
-	})
-
-	wg.Wait()
-
-	err = workflowConn.Close()
+	log.InfoContext(ctx, "Listening for ssh connections", "port", port)
+	err = p.Wait(ctx)
 	if err != nil {
-		log.Println("Error closing workflow connection:", err)
+		return
 	}
 
-	log.Println("Connection terminated")
+	log.InfoContext(ctx, "Starting workflow")
+	err = gh.Workflow(ctx, w.ID, w.Owner, w.Repository, w.Ref, w.RunsOn, fmt.Sprintf("%s:%d", w.Hostname, port))
+	if err != nil {
+		log.ErrorContext(ctx, "Failed to start workflow", "error", err)
+		return
+	}
+
+	log.InfoContext(ctx, "Connection established, bridging")
+	err = p.Bridge(ctx)
+	if err != nil {
+		log.ErrorContext(ctx, "Failed to bridge connections", "error", err)
+		return
+	}
+
+	log.InfoContext(ctx, "Connection terminated")
 }

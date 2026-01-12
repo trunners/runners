@@ -1,0 +1,12 @@
+{
+  "workflows": [
+    {
+      "hostname": "localhost",
+      "id": "start.yaml",
+      "owner": "trev",
+      "repo": "runners",
+      "ref": "main",
+      "runs-on": "ubuntu-24.04"
+    }
+  ]
+}

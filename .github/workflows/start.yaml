@@ -3,8 +3,8 @@ name: start
 on:
   workflow_dispatch:
     inputs:
-      image:
-        description: Image
+      runs-on:
+        description: The runner image to use
         required: true
         default: ubuntu-24.04
         type: choice
@@ -17,13 +17,14 @@ on:
       server:
         description: Socket address of the middleware server
         required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   start:
-    runs-on: ${{ inputs.image }}
+    runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1

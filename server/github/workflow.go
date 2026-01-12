@@ -1,4 +1,4 @@
-package main
+package github
 
 import (
 	"bytes"
@@ -9,31 +9,28 @@ import (
 	"net/http"
 )
 
-type Workflow struct {
+type Github struct {
 	ID         string
 	Owner      string
 	Repository string
+	Ref        string
+	RunsOn     string
 	Token      string
 	URL        string
 }
 
-func NewWorkflow(id, owner, repository, token string) (*Workflow, error) {
-	if id == "" || owner == "" || repository == "" || token == "" {
-		return nil, errors.New("missing required workflow parameters")
+func New(token string) (Github, error) {
+	if token == "" {
+		return Github{}, errors.New("missing GitHub token")
 	}
 
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/workflows/%s/dispatches", owner, repository, id)
-	return &Workflow{
-		ID:         id,
-		Owner:      owner,
-		Repository: repository,
-		Token:      token,
-		URL:        url,
+	return Github{
+		Token: token,
 	}, nil
 }
 
 type Inputs struct {
-	Image  string `json:"image"`
+	RunsOn string `json:"runs-on"`
 	Server string `json:"server"`
 }
 
@@ -42,9 +39,9 @@ type Dispatch struct {
 	Inputs Inputs `json:"inputs"`
 }
 
-func (w Workflow) start(ctx context.Context, image string, server string, ref string) error {
+func (g Github) Workflow(ctx context.Context, id, owner, repository, ref, runsOn, server string) error {
 	inputs := Inputs{
-		Image:  image,
+		RunsOn: runsOn,
 		Server: server,
 	}
 
@@ -58,13 +55,14 @@ func (w Workflow) start(ctx context.Context, image string, server string, ref st
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, w.URL, bytes.NewBuffer(body))
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/workflows/%s/dispatches", owner, repository, id)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
 	if err != nil {
 		return err
 	}
 
 	req.Header.Set("Accpet", "application/vnd.github+json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", w.Token))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", g.Token))
 	req.Header.Set("X-Github-Api-Version", "2022-11-28")
 
 	client := &http.Client{}

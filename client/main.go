@@ -3,66 +3,55 @@ package main
 import (
 	"context"
 	"io"
-	"log"
 	"net"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/trunners/runners/logger"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	log := logger.New()
+	ctx = logger.WithLogger(ctx, log)
+
 	serverAddress := os.Getenv("SERVER_ADDRESS")
 	if serverAddress == "" {
-		log.Fatal("SERVER_ADDRESS environment variable is required")
+		log.ErrorContext(ctx, "SERVER_ADDRESS environment variable is required")
+		os.Exit(1)
 	}
 
-	dialer := &net.Dialer{}
-
-	serverConn, err := dialer.DialContext(ctx, "tcp", serverAddress)
+	openssh, err := dial(ctx, "localhost:22")
 	if err != nil {
-		log.Println("Error connecting to server:", err)
+		log.ErrorContext(ctx, "Could not connect to openssh", "error", err)
+		os.Exit(1)
+	}
+	log.InfoContext(ctx, "Connected to openssh", "address", openssh.RemoteAddr())
+
+	server, err := dial(ctx, serverAddress)
+	if err != nil {
+		log.ErrorContext(ctx, "Could not connect to server", "error", err)
 		return
 	}
-	go func() {
-		<-ctx.Done()
-		conerr := serverConn.Close()
-		if conerr != nil {
-			log.Println("Error closing server connection:", conerr)
-		}
-	}()
-	log.Printf("Connected to remote server: %s\n", serverConn.RemoteAddr())
+	log.InfoContext(ctx, "Connected to remote server", "address", server.RemoteAddr())
 
-	sshConn, err := dialer.DialContext(ctx, "tcp", "localhost:22")
-	if err != nil {
-		log.Println("Error connecting to openssh server:", err)
-		return
-	}
-	go func() {
-		<-ctx.Done()
-		conerr := sshConn.Close()
-		if conerr != nil {
-			log.Println("Error closing server connection:", conerr)
-		}
-	}()
-	log.Printf("Connected to openssh server: %s\n", sshConn.RemoteAddr())
-
-	log.Printf("Piping data between %s and %s...\n", serverConn.RemoteAddr(), sshConn.RemoteAddr())
+	log.InfoContext(ctx, "Piping data", "server", server.RemoteAddr(), "openssh", openssh.RemoteAddr())
 	wg := sync.WaitGroup{}
 
 	wg.Go(func() {
-		_, ioerr := io.Copy(serverConn, sshConn)
-		if ioerr != nil {
-			log.Println("Error piping data:", err)
+		_, err = io.Copy(server, openssh)
+		if err != nil {
+			log.ErrorContext(ctx, "Failed piping data from server to openssh", "error", err)
 		}
 	})
 
 	wg.Go(func() {
-		_, ioerr := io.Copy(sshConn, serverConn)
+		_, ioerr := io.Copy(openssh, server)
 		if ioerr != nil {
-			log.Println("Error piping data:", err)
+			log.ErrorContext(ctx, "Failed piping data from openssh to server", "error", err)
 		}
 	})
 
@@ -74,4 +63,24 @@ func main() {
 	}()
 
 	wg.Wait()
+}
+
+func dial(ctx context.Context, address string) (net.Conn, error) {
+	log := logger.FromContext(ctx)
+
+	dialer := &net.Dialer{}
+	server, err := dialer.DialContext(ctx, "tcp", address)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		<-ctx.Done()
+		err = server.Close()
+		if err != nil {
+			log.ErrorContext(ctx, "Error closing connection", "address", address, "error", err)
+		}
+	}()
+
+	return server, nil
 }

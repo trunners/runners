@@ -1,13 +1,13 @@
 /.env
 /.envrc
 /docker-compose*
+/config.json
 
 # build
 /build/
 /tmp/
+/dist/
 
 # nix
 /result*
 /.direnv/
-# Added by goreleaser init:
-dist/

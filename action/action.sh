@@ -18,7 +18,7 @@ fi
 
 echo "::group::overwriting sshd_config"
 cat "${GITHUB_WORKSPACE}/action/sshd_config" | sudo tee /etc/ssh/sshd_config > /dev/null
-sudo cat /etc/ssh/sshd_config
+cat /etc/ssh/sshd_config
 echo "::endgroup::"
 
 echo "setting ssh keys"
@@ -27,7 +27,7 @@ echo "${PUBLIC_KEY}" | sudo tee /etc/ssh/ssh_host_ed25519_key.pub > /dev/null
 
 echo "::group::adding ${GITHUB_ACTOR}'s keys to authorized_keys"
 curl -s "https://github.com/${GITHUB_ACTOR}.keys" | sudo tee /etc/ssh/authorized_keys > /dev/null
-sudo cat /etc/ssh/authorized_keys
+cat /etc/ssh/authorized_keys
 echo "::endgroup::"
 
 echo "starting ssh service"
@@ -90,5 +90,5 @@ until [[ "$(who | grep -c -e pts -e tty)" -le "${SESSIONS}" ]]; do
 done
 
 # teardown
-kill "${LOGGER}"
-kill "${CLIENT}"
+kill "${LOGGER}" 2> /dev/null || true
+kill "${CLIENT}" 2> /dev/null || true
