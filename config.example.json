@@ -1,9 +1,23 @@
 {
-  "start": {
+  "ubuntu": {
     "id": "start.yaml",
-    "owner": "trev",
+    "owner": "trunners",
     "repo": "runners",
     "ref": "main",
     "runs-on": "ubuntu-24.04"
+  },
+  "ubuntu-arm": {
+    "id": "start.yaml",
+    "owner": "trunners",
+    "repo": "runners",
+    "ref": "main",
+    "runs-on": "ubuntu-24.04-arm"
+  },
+  "darwin": {
+    "id": "start.yaml",
+    "owner": "trunners",
+    "repo": "runners",
+    "ref": "main",
+    "runs-on": "macos-26"
   }
 }

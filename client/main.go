@@ -20,6 +20,7 @@ import (
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
+
 	log := logger.New()
 	ctx = logger.WithLogger(ctx, log)
 	cfg := config.Load()
@@ -49,8 +50,9 @@ func main() {
 	wg.Go(func() {
 		ssh.DiscardRequests(reqs)
 	})
+
 	wg.Go(func() {
-		handle(ctx, chans, cfg.Shell)
+		channel(ctx, chans, cfg.Shell)
 	})
 
 	sigs := make(chan os.Signal, 1)
@@ -63,13 +65,13 @@ func main() {
 	wg.Wait()
 }
 
-func handle(ctx context.Context, chans <-chan ssh.NewChannel, shell string) {
+func channel(ctx context.Context, chans <-chan ssh.NewChannel, shell string) {
 	for channel := range chans {
-		go handleChannel(ctx, channel, shell)
+		go pipe(ctx, channel, shell)
 	}
 }
 
-func handleChannel(ctx context.Context, channel ssh.NewChannel, shell string) {
+func pipe(ctx context.Context, channel ssh.NewChannel, shell string) {
 	log := logger.FromContext(ctx)
 
 	if t := channel.ChannelType(); t != "session" {
@@ -132,14 +134,14 @@ func handleChannel(ctx context.Context, channel ssh.NewChannel, shell string) {
 	})
 
 	wg.Go(func() {
-		handleRequests(ctx, shellpty, requests)
+		request(ctx, shellpty, requests)
 	})
 
 	wg.Wait()
 	log.InfoContext(ctx, "Session closed")
 }
 
-func handleRequests(ctx context.Context, shell *os.File, requests <-chan *ssh.Request) {
+func request(ctx context.Context, shell *os.File, requests <-chan *ssh.Request) {
 	log := logger.FromContext(ctx)
 	var err error
 

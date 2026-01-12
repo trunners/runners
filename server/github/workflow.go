@@ -10,13 +10,8 @@ import (
 )
 
 type Github struct {
-	ID         string
-	Owner      string
-	Repository string
-	Ref        string
-	RunsOn     string
-	Token      string
-	URL        string
+	Token  string
+	client *http.Client
 }
 
 func New(token string) (Github, error) {
@@ -25,7 +20,8 @@ func New(token string) (Github, error) {
 	}
 
 	return Github{
-		Token: token,
+		Token:  token,
+		client: &http.Client{},
 	}, nil
 }
 
@@ -65,8 +61,7 @@ func (g Github) Workflow(ctx context.Context, id, owner, repository, ref, runsOn
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", g.Token))
 	req.Header.Set("X-Github-Api-Version", "2022-11-28")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := g.client.Do(req)
 	if err != nil {
 		return err
 	}

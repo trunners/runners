@@ -70,10 +70,12 @@
             src = packages.default;
             deps = with pkgs; [
               golangci-lint
+              goreleaser
             ];
             script = ''
               go test ./...
               golangci-lint run ./...
+              goreleaser check
             '';
           };
 

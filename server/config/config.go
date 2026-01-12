@@ -15,7 +15,7 @@ type Workflow struct {
 	Owner      string `json:"owner"`
 	Repository string `json:"repo"`
 	Ref        string `json:"ref"`
-	RunsOn     string `json:"runs_on"`
+	RunsOn     string `json:"runs-on"`
 }
 
 type Config struct {
