@@ -60,25 +60,34 @@ func workflow(ctx context.Context, w config.Workflow, gh github.Github, port int
 		return
 	}
 
-	log.InfoContext(ctx, "Listening for ssh connections", "port", port)
-	err = p.Wait(ctx)
-	if err != nil {
-		return
-	}
+	for {
+		log.InfoContext(ctx, "Listening for ssh connections", "port", port)
+		err = p.Wait(ctx, 1)
+		if err != nil {
+			return
+		}
 
-	log.InfoContext(ctx, "Starting workflow")
-	err = gh.Workflow(ctx, w.ID, w.Owner, w.Repository, w.Ref, w.RunsOn, fmt.Sprintf("%s:%d", w.Hostname, port))
-	if err != nil {
-		log.ErrorContext(ctx, "Failed to start workflow", "error", err)
-		return
-	}
+		log.InfoContext(ctx, "Starting workflow")
+		err = gh.Workflow(ctx, w.ID, w.Owner, w.Repository, w.Ref, w.RunsOn, fmt.Sprintf("%s:%d", w.Hostname, port))
+		if err != nil {
+			log.ErrorContext(ctx, "Failed to start workflow", "error", err)
+			return
+		}
 
-	log.InfoContext(ctx, "Connection established, bridging")
-	err = p.Bridge(ctx)
-	if err != nil {
-		log.ErrorContext(ctx, "Failed to bridge connections", "error", err)
-		return
-	}
+		log.InfoContext(ctx, "Waiting for ssh connections", "port", port)
+		err = p.Wait(ctx, 2) //nolint:mnd // wait for 2 connections
+		if err != nil {
+			return
+		}
 
-	log.InfoContext(ctx, "Connection terminated")
+		log.InfoContext(ctx, "Connection established, bridging")
+		err = p.Bridge(ctx)
+		if err != nil {
+			log.ErrorContext(ctx, "Failed to bridge connections", "error", err)
+			return
+		}
+
+		log.InfoContext(ctx, "Connection terminated, resetting pool")
+		p.Reset(ctx)
+	}
 }

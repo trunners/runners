@@ -40,7 +40,7 @@ func Start(ctx context.Context, port int) (*Pool, error) {
 	// close listener on context done
 	go func() {
 		<-ctx.Done()
-		p.Close(ctx)
+		p.close(ctx)
 	}()
 
 	return p, nil
@@ -90,7 +90,7 @@ func (p *Pool) add(ctx context.Context, conn net.Conn) {
 		return
 	}
 
-	log.InfoContext(ctx, "Accepted connection", "port", p.port, "address", conn.RemoteAddr())
+	log.InfoContext(ctx, "Accepted connection", "port", p.port, "remote", conn.RemoteAddr(), "local", conn.LocalAddr())
 	p.connections = append(p.connections, conn)
 
 	select {
@@ -107,7 +107,7 @@ func (p *Pool) get() []net.Conn {
 }
 
 // Close closes all connections in the pool and the listener.
-func (p *Pool) Close(ctx context.Context) {
+func (p *Pool) close(ctx context.Context) {
 	log := logger.FromContext(ctx)
 
 	p.mu.Lock()
@@ -126,8 +126,25 @@ func (p *Pool) Close(ctx context.Context) {
 	}
 }
 
-// Wait blocks until there are two connections in the pool or the context is cancelled.
-func (p *Pool) Wait(ctx context.Context) error {
+// Reset closes all connections in the pool and resets it to empty.
+func (p *Pool) Reset(ctx context.Context) {
+	log := logger.FromContext(ctx)
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// close all the connections in the pool
+	for _, conn := range p.connections {
+		err := conn.Close()
+		if err != nil {
+			log.ErrorContext(ctx, "Could not close connection", "error", err)
+		}
+	}
+	p.connections = []net.Conn{}
+}
+
+// Wait blocks until there are size connections in the pool or the context is cancelled.
+func (p *Pool) Wait(ctx context.Context, size int) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -135,7 +152,7 @@ func (p *Pool) Wait(ctx context.Context) error {
 
 		case <-p.notify:
 			connections := p.get()
-			if len(connections) < 2 { //nolint:mnd // min 2
+			if len(connections) < size {
 				continue
 			}
 
