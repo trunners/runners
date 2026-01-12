@@ -26,13 +26,27 @@ jobs:
   start:
     runs-on: ${{ inputs.runs-on }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
       - name: Start
-        run: ./action/action.sh
         env:
-          PUBLIC_KEY: ${{ secrets.PUBLIC_KEY }}
-          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           SERVER_ADDRESS: ${{ inputs.server }}
           GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${RUNNER_OS}" == "Linux" ]]; then
+              RELEASE_OS="linux"
+          elif [[ "${RUNNER_OS}" == "macOS" ]]; then
+              RELEASE_OS="darwin"
+          fi
+
+          if [[ "${RUNNER_ARCH}" == "X64" ]]; then
+              RELEASE_ARCH="amd64"
+          elif [[ "${RUNNER_ARCH}" == "ARM64" ]]; then
+              RELEASE_ARCH="arm64"
+          fi
+
+          echo "::group::downloading client"
+          gh release download --repo trunners/runners --pattern "client_*_${RELEASE_OS}_${RELEASE_ARCH}" --output runner
+          chmod +x runner
+          echo "::endgroup::"
+
+          echo "starting client"
+          ./runner

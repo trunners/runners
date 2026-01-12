@@ -4,22 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
-	"sync"
 
 	"github.com/trunners/runners/logger"
 )
 
 type Pool struct {
-	port        int
-	listener    net.Listener
-	notify      chan struct{}
-	connections []net.Conn
-	mu          sync.Mutex
+	port     int
+	listener net.Listener
+
+	tcps chan net.Conn
+	sshs chan net.Conn
 }
 
 func Start(ctx context.Context, port int) (*Pool, error) {
+	log := logger.FromContext(ctx)
+
 	cfg := net.ListenConfig{}
 	listener, err := cfg.Listen(ctx, "tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -27,11 +27,10 @@ func Start(ctx context.Context, port int) (*Pool, error) {
 	}
 
 	p := &Pool{
-		port:        port,
-		listener:    listener,
-		notify:      make(chan struct{}),
-		connections: []net.Conn{},
-		mu:          sync.Mutex{},
+		port:     port,
+		listener: listener,
+		tcps:     make(chan net.Conn, 10), //nolint:mnd // buffer size 10
+		sshs:     make(chan net.Conn, 10), //nolint:mnd // buffer size 10
 	}
 
 	// start listening for connections
@@ -40,7 +39,10 @@ func Start(ctx context.Context, port int) (*Pool, error) {
 	// close listener on context done
 	go func() {
 		<-ctx.Done()
-		p.close(ctx)
+		err = p.listener.Close()
+		if err != nil {
+			log.ErrorContext(ctx, "Could not close listener", "error", err)
+		}
 	}()
 
 	return p, nil
@@ -67,139 +69,77 @@ func (p *Pool) listen(ctx context.Context) {
 func (p *Pool) add(ctx context.Context, conn net.Conn) {
 	log := logger.FromContext(ctx)
 
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	connection := newConnection(conn)
 
-	if len(p.connections) >= 2 { //nolint:mnd // max 2
-		log.WarnContext(
-			ctx,
-			"Rejecting connection, pool is full",
-			"port",
-			p.port,
-			"remote",
-			conn.RemoteAddr(),
-			"local",
-			conn.LocalAddr(),
-		)
-
-		err := conn.Close()
+	test, err := connection.Peek(3) //nolint:mnd // peek at first 3 bytes to determine connection type
+	switch {
+	case err != nil:
+		log.WarnContext(ctx, "Could not peek connection", "error", err)
+	case string(test) == "SSH":
+		connection.Protocol = TypeSSH
+	case string(test) == "TCP":
+		connection.Protocol = TypeTCP
+		_, err = connection.ReadBytes(3) //nolint:mnd // read the first 3 bytes to pop them
 		if err != nil {
-			log.ErrorContext(
-				ctx,
-				"Could not close connection",
-				"port",
-				p.port,
-				"remote",
-				conn.RemoteAddr(),
-				"local",
-				conn.LocalAddr(),
-				"error",
-				err,
-			)
-		}
-
-		return
-	}
-
-	log.InfoContext(ctx, "Accepted connection", "port", p.port, "remote", conn.RemoteAddr(), "local", conn.LocalAddr())
-	p.connections = append(p.connections, conn)
-
-	select {
-	case p.notify <- struct{}{}:
-	default:
-	}
-}
-
-func (p *Pool) get() []net.Conn {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	return p.connections
-}
-
-// Close closes all connections in the pool and the listener.
-func (p *Pool) close(ctx context.Context) {
-	log := logger.FromContext(ctx)
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// close all the connections in the pool
-	for _, conn := range p.connections {
-		_ = conn.Close()
-	}
-	p.connections = []net.Conn{}
-
-	// close the listener
-	err := p.listener.Close()
-	if err != nil {
-		log.ErrorContext(ctx, "Could not close listener", "error", err)
-	}
-}
-
-// Reset closes all connections in the pool and resets it to empty.
-func (p *Pool) Reset(ctx context.Context) {
-	log := logger.FromContext(ctx)
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// close all the connections in the pool
-	for _, conn := range p.connections {
-		err := conn.Close()
-		if err != nil {
-			log.ErrorContext(ctx, "Could not close connection", "error", err)
+			log.WarnContext(ctx, "Could not read END bytes", "error", err)
 		}
 	}
-	p.connections = []net.Conn{}
-}
 
-// Wait blocks until there are size connections in the pool or the context is cancelled.
-func (p *Pool) Wait(ctx context.Context, size int) error {
-	for {
+	log.DebugContext(
+		ctx,
+		"New connection",
+		"type",
+		connection.Type(),
+		"remote",
+		connection.RemoteAddr(),
+		"local",
+		connection.LocalAddr(),
+	)
+
+	switch connection.Protocol {
+	case TypeSSH:
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case p.sshs <- connection:
+		default:
+			log.WarnContext(ctx, "SSH connection pool full, closing connection", "remote", connection.RemoteAddr())
+			_ = connection.Close()
+		}
 
-		case <-p.notify:
-			connections := p.get()
-			if len(connections) < size {
-				continue
+	case TypeTCP:
+		fallthrough
+	default:
+		select {
+		case p.tcps <- connection:
+		default:
+			log.WarnContext(ctx, "TCP connection pool full, closing connection", "remote", connection.RemoteAddr())
+			_ = connection.Close()
+		}
+	}
+}
+
+// Next returns the next connection from the pool matching the given protocol.
+func (p *Pool) Next(ctx context.Context, protocol ConnectionProtocol) (net.Conn, error) {
+	for {
+		switch protocol {
+		case TypeSSH:
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+
+			case connection := <-p.sshs:
+				return connection, nil
 			}
 
-			return nil
+		case TypeTCP:
+			fallthrough
+		default:
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+
+			case connection := <-p.tcps:
+				return connection, nil
+			}
 		}
 	}
-}
-
-// Bridge pipes data between the two connections in the pool.
-func (p *Pool) Bridge(ctx context.Context) error {
-	log := logger.FromContext(ctx)
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if len(p.connections) < 2 { //nolint:mnd // min 2
-		return errors.New("not enough connections to bridge")
-	}
-
-	wg := sync.WaitGroup{}
-
-	wg.Go(func() {
-		_, ioerr := io.Copy(p.connections[0], p.connections[1])
-		if ioerr != nil {
-			log.ErrorContext(ctx, "Could not pipe data", "error", ioerr, "port", p.port)
-		}
-	})
-
-	wg.Go(func() {
-		_, ioerr := io.Copy(p.connections[1], p.connections[0])
-		if ioerr != nil {
-			log.ErrorContext(ctx, "Could not pipe data", "error", ioerr, "port", p.port)
-		}
-	})
-
-	wg.Wait()
-
-	return nil
 }
