@@ -63,7 +63,7 @@ func main() {
 func serve(ctx context.Context, cfg *config.Config, gh github.Github, p *pool.Pool) {
 	log := logger.FromContext(ctx)
 
-	log.InfoContext(ctx, "Waiting for SSH connection")
+	log.InfoContext(ctx, "Waiting for SSH connection", "port", cfg.Port)
 	serverTCP, err := p.Next(ctx, pool.TypeSSH)
 	if err != nil {
 		return
@@ -211,7 +211,6 @@ func request(ctx context.Context, channel ssh.Channel, requests <-chan *ssh.Requ
 		reply, err := channel.SendRequest(req.Type, req.WantReply, req.Payload)
 		if err != nil {
 			log.ErrorContext(ctx, "Error sending request to client", "error", err)
-			continue
 		}
 
 		if req.WantReply {
